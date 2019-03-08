@@ -504,6 +504,14 @@ write(stats,"stats.csv",ncolumns = length(stats), append=TRUE, sep=",")
 
 rank.post.folds("./scores")
 
+#expected jaccard similarity of 2 sets of m element chosen randomly from a set of n elements
+expected.jaccard <- function(n,m){
+  seq(m) %>%  map_dbl(function(k){
+    choose(m,k)*choose(n-m,m-k)/choose(n,m) * k/(2*m - k)
+  }) %>% sum
+}
+
+.pardefault <- par()
 par(mfrow=c(1,3), mar = c(5,2,4,2) + 0.1, oma = c(1,8,1,1))
 
 sub1_genes <- map2_dfc(team_all, pattern1_all, function(x,y){
@@ -514,7 +522,8 @@ sub1_genes <- map2_dfc(team_all, pattern1_all, function(x,y){
 
 sub1_genes <- sub1_genes[,rev(colnames(sub1_genes))]
 
-boxplot(sub1_genes, horizontal = T, ylim = c(0.3,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 1")
+boxplot(sub1_genes, horizontal = T, ylim = c(0.1,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 1")
+abline(v=expected.jaccard(84,60), lty=3)
 
 sub2_genes <- map2_dfc(team_all, pattern2_all, function(x,y){
   team.stats <- data.frame(jaccard.genes(y,2))
@@ -523,7 +532,8 @@ sub2_genes <- map2_dfc(team_all, pattern2_all, function(x,y){
 })
 sub2_genes <- sub2_genes[,rev(colnames(sub2_genes))]
 
-boxplot(sub2_genes, horizontal = T, ylim = c(0.3,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 2", names = F)
+boxplot(sub2_genes, horizontal = T, ylim = c(0.1,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 2", names = F)
+abline(v=expected.jaccard(84,40), lty=3)
 
 sub3_genes <- map2_dfc(team_all, pattern3_all, function(x,y){
   team.stats <- data.frame(jaccard.genes(y,3))
@@ -533,7 +543,8 @@ sub3_genes <- map2_dfc(team_all, pattern3_all, function(x,y){
 
 sub3_genes <- sub3_genes[,rev(colnames(sub3_genes))]
 
-boxplot(sub3_genes, horizontal = T, ylim = c(0.3,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 3", names = F)
+boxplot(sub3_genes, horizontal = T, ylim = c(0.1,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 3", names = F)
+abline(v=expected.jaccard(84,20), lty=3)
 
 raw.selected.genes <- function(pattern, sub){
   all.submissions <- seq(10) %>% map(~read.csv(str_glue(pattern),header=FALSE,stringsAsFactors = FALSE))
@@ -550,12 +561,7 @@ raw.selected.genes <- function(pattern, sub){
   return(selected.genes)
 }
 
-#expected jaccard similarity of 2 sets of m element chosen randomly from a set of n elements
-expected.jaccard <- function(n,m){
-  seq(m) %>%  map_dbl(function(k){
-    choose(m,k)*choose(n-m,m-k)/choose(n,m) * k/(2*m - k)
-  }) %>% sum
-}
+par(.pardefault)
 
 frequencies1 <- sort(table(pattern1_all %>% map_dfc(~raw.selected.genes(.x,1)) %>% apply(1,as.character))/130,decreasing=T)
 plot(frequencies1, ylab="Frequency", xlab="", las=2, main= "Subchallenge 1")
@@ -569,29 +575,30 @@ plot(frequencies3, ylab="Frequency", xlab="", las=2, main= "Subchallenge 3")
 
 #top-k plot
 
-overlap12 <- seq_along(frequencies1) %>% map_dbl(function(c){
+overlap12 <- seq(min(length(frequencies1),length(frequencies2))) %>% map_dbl(function(c){
   s1 <- names(frequencies1)[1:c]
   s2 <- names(frequencies2)[1:c]
+  s1
   length(intersect(s1,s2))/length(union(s1,s2))
 })
 
-overlap23 <- seq_along(frequencies1)  %>% map_dbl(function(c){
+overlap23 <- seq(min(length(frequencies2),length(frequencies3)))  %>% map_dbl(function(c){
   s1 <- names(frequencies2)[1:c]
   s2 <- names(frequencies3)[1:c]
   length(intersect(s1,s2))/length(union(s1,s2))
 })
 
-overlap13 <- seq_along(frequencies1)  %>% map_dbl(function(c){
+overlap13 <- seq(min(length(frequencies1),length(frequencies3)))  %>% map_dbl(function(c){
   s1 <- names(frequencies1)[1:c]
   s2 <- names(frequencies3)[1:c]
   length(intersect(s1,s2))/length(union(s1,s2))
 })
 
-plot(seq_along(frequencies1), overlap12, type="l", col="green", ylab="Jaccard", xlab="Top K selected genes by frequency", ylim=c(0,1))
+plot(overlap12, type="l", col="green", ylab="Jaccard", xlab="Top K selected genes by frequency", ylim=c(0,1))
 lines(overlap23, col="blue")
 lines(overlap13, col="red")
 
 lines(seq(84) %>% map_dbl(~expected.jaccard(84,.x)), lty=3)
 
 
-legend(60,0.35,c("Subchallenge 1-2","Subchallenge 2-3","Subchallenge 1-3", "random"), col=c("green","blue","red", "black"), lty=1)
+legend(60,0.35,c("Subchallenge 1-2","Subchallenge 2-3","Subchallenge 1-3", "random"), col=c("green","blue","red", "black"), lty=c(1,1,1,3))
