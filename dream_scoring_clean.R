@@ -535,3 +535,63 @@ sub3_genes <- sub3_genes[,rev(colnames(sub3_genes))]
 
 boxplot(sub3_genes, horizontal = T, ylim = c(0.3,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 3", names = F)
 
+raw.selected.genes <- function(pattern, sub){
+  all.submissions <- seq(10) %>% map(~read.csv(str_glue(pattern),header=FALSE,stringsAsFactors = FALSE))
+  
+  #for each fold get genes
+  selected.genes <- all.submissions %>% map_dfc(function(submission){
+    #separate the gene names from the location predictions
+    gene.lines <- (4-sub)*2
+    genes <- submission %>% slice(1:gene.lines) %>% select(-1) %>% unlist %>% make.names
+    
+    data.frame(f = genes %>% as.character)
+  })
+  
+  return(selected.genes)
+}
+
+#expected jaccard similarity of 2 sets of m element chosen randomly from a set of n elements
+expected.jaccard <- function(n,m){
+  seq(m) %>%  map_dbl(function(k){
+    choose(m,k)*choose(n-m,m-k)/choose(n,m) * k/(2*m - k)
+  }) %>% sum
+}
+
+frequencies1 <- sort(table(pattern1_all %>% map_dfc(~raw.selected.genes(.x,1)) %>% apply(1,as.character))/130,decreasing=T)
+plot(frequencies1, ylab="Frequency", xlab="", las=2, main= "Subchallenge 1")
+
+frequencies2 <- sort(table(pattern2_all %>% map_dfc(~raw.selected.genes(.x,2)) %>% apply(1,as.character))/130,decreasing=T)
+plot(frequencies2, ylab="Frequency", xlab="", las=2, main= "Subchallenge 2")
+
+frequencies3 <- sort(table(pattern3_all %>% map_dfc(~raw.selected.genes(.x,3)) %>% apply(1,as.character))/130,decreasing=T)
+plot(frequencies3, ylab="Frequency", xlab="", las=2, main= "Subchallenge 3")
+
+
+#top-k plot
+
+overlap12 <- seq_along(frequencies1) %>% map_dbl(function(c){
+  s1 <- names(frequencies1)[1:c]
+  s2 <- names(frequencies2)[1:c]
+  length(intersect(s1,s2))/length(union(s1,s2))
+})
+
+overlap23 <- seq_along(frequencies1)  %>% map_dbl(function(c){
+  s1 <- names(frequencies2)[1:c]
+  s2 <- names(frequencies3)[1:c]
+  length(intersect(s1,s2))/length(union(s1,s2))
+})
+
+overlap13 <- seq_along(frequencies1)  %>% map_dbl(function(c){
+  s1 <- names(frequencies1)[1:c]
+  s2 <- names(frequencies3)[1:c]
+  length(intersect(s1,s2))/length(union(s1,s2))
+})
+
+plot(seq_along(frequencies1), overlap12, type="l", col="green", ylab="Jaccard", xlab="Top K selected genes by frequency", ylim=c(0,1))
+lines(overlap23, col="blue")
+lines(overlap13, col="red")
+
+lines(seq(84) %>% map_dbl(~expected.jaccard(84,.x)), lty=3)
+
+
+legend(60,0.35,c("Subchallenge 1-2","Subchallenge 2-3","Subchallenge 1-3", "random"), col=c("green","blue","red", "black"), lty=1)
