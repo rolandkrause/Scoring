@@ -456,6 +456,24 @@ rank.post.folds <- function(path){
 }
 
 
+jaccard.genes <- function(pattern, sub){
+  all.submissions <- seq(10) %>% map(~read.csv(str_glue(pattern),header=FALSE,stringsAsFactors = FALSE))
+  
+  #for each fold get genes
+  selected.genes <- all.submissions %>% map_dfc(function(submission){
+    #separate the gene names from the location predictions
+    gene.lines <- (4-sub)*2
+    genes <- submission %>% slice(1:gene.lines) %>% select(-1) %>% unlist %>% make.names
+  
+    data.frame(f = genes %>% as.character)
+  })
+  
+  combn(seq(ncol(selected.genes)), 2, function(x){
+    length(intersect(selected.genes[,x[1]],selected.genes[,x[2]]))/length(union(selected.genes[,x[1]],selected.genes[,x[2]]))
+  })
+}
+
+
 team_all <- c("BCBU", "Challengers18", "Challengers18 Official", "Christoph Hafemeister", "DeepCMC", "MLB", "NAD", "OmicsEngineering", "random", "Thin Nguyen", "WhatATeam", "Zho")
 
 pattern1_all <- c("post/BCBU_bin/BCBU_60_{.}.csv", "post/challengers18_CV/60genes_{.}.csv", "post/challengers18_official_submisison_CV/60genes_{.}.csv", "post/cv_results_christoph_hafemeister/60genes_{.}.csv", "post/DeepCMC_SubmissionFiles_CV_DistMapTrainTest/60genes_a_{.}_test.csv", 
@@ -485,4 +503,35 @@ stats <- c(team, result %>% map(~apply(.x,2,function(r) c(mean(r),sd(r)))) %>% u
 write(stats,"stats.csv",ncolumns = length(stats), append=TRUE, sep=",")
 
 rank.post.folds("./scores")
+
+par(mfrow=c(1,3), mar = c(5,2,4,2) + 0.1, oma = c(1,8,1,1))
+
+sub1_genes <- map2_dfc(team_all, pattern1_all, function(x,y){
+  team.stats <- data.frame(jaccard.genes(y,1))
+  colnames(team.stats)[1] <- x
+  team.stats
+})
+
+sub1_genes <- sub1_genes[,rev(colnames(sub1_genes))]
+
+boxplot(sub1_genes, horizontal = T, ylim = c(0.3,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 1")
+
+sub2_genes <- map2_dfc(team_all, pattern2_all, function(x,y){
+  team.stats <- data.frame(jaccard.genes(y,2))
+  colnames(team.stats)[1] <- x
+  team.stats
+})
+sub2_genes <- sub2_genes[,rev(colnames(sub2_genes))]
+
+boxplot(sub2_genes, horizontal = T, ylim = c(0.3,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 2", names = F)
+
+sub3_genes <- map2_dfc(team_all, pattern3_all, function(x,y){
+  team.stats <- data.frame(jaccard.genes(y,3))
+  colnames(team.stats)[1] <- x
+  team.stats
+})
+
+sub3_genes <- sub3_genes[,rev(colnames(sub3_genes))]
+
+boxplot(sub3_genes, horizontal = T, ylim = c(0.3,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 3", names = F)
 
