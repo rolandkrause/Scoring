@@ -272,13 +272,15 @@ bootstraped.ranks <- function(submissions,sub){
   save(ranks,file=paste0("sc",sub,"ranks.Rdata"))
   
   #draw the boxplot
-  avg.ranks <- ranks %>% colMeans %>% rank  
+  avg.ranks <- ranks %>% colMeans %>% rank
   ordering <- order(avg.ranks)
   pdf(paste0("sc",sub,"_final_boxplot.pdf"), width=11, height=8)
   par(mar=c(5,10.5,4,2) + 0.1)
   boxplot(ranks[,ordering],horizontal=T,las=2,at=rev(1:ncol(ranks)), xlab="Rank")
   
-  factors <- map2_dfr(ordering[-length(ordering)],ordering[-1],function(c1,c2){
+  ranks <- ranks[,ordering]
+  
+  factors <- map2_dfr(seq(ncol(ranks)-1),seq(2,ncol(ranks)),function(c1,c2){
     win <- sum(ranks[,c1] < ranks[,c2])
     lose <- sum(ranks[,c2] < ranks[,c1])
     BF <- win/lose
