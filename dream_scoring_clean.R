@@ -513,6 +513,11 @@ expected.jaccard <- function(n,m){
   }) %>% sum
 }
 
+pattern1_all <- as.character(patterns$pattern1[-9])
+pattern2_all <- as.character(patterns$pattern2[-9])
+pattern3_all <- as.character(patterns$pattern3[-9])
+team_all <- as.character(patterns$Team[-9])
+
 .pardefault <- par()
 par(mfrow=c(1,3), mar = c(5,2,4,2) + 0.1, oma = c(1,8,1,1))
 
@@ -565,14 +570,15 @@ raw.selected.genes <- function(pattern, sub){
 
 par(.pardefault)
 
-frequencies1 <- sort(table(pattern1_all %>% map_dfc(~raw.selected.genes(.x,1)) %>% apply(1,as.character))/130,decreasing=T)
-plot(frequencies1, ylab="Frequency", xlab="", las=2, main= "Subchallenge 1")
+frequencies1 <- sort(table(pattern1_all %>% map_dfc(~raw.selected.genes(.x,1)) %>% apply(1,as.character))/(length(pattern1_all)*10),decreasing=T)
+plot(frequencies1, ylab="Frequency", xlab="", las=2, main= "Subchallenge 1", ylim=c(0,1))
 
-frequencies2 <- sort(table(pattern2_all %>% map_dfc(~raw.selected.genes(.x,2)) %>% apply(1,as.character))/130,decreasing=T)
-plot(frequencies2, ylab="Frequency", xlab="", las=2, main= "Subchallenge 2")
+frequencies2 <- sort(table(pattern2_all %>% map_dfc(~raw.selected.genes(.x,2)) %>% apply(1,as.character))/(length(pattern2_all)*10),decreasing=T)
+plot(frequencies2, ylab="Frequency", xlab="", las=2, main= "Subchallenge 2", ylim=c(0,1))
 
-frequencies3 <- sort(table(pattern3_all %>% map_dfc(~raw.selected.genes(.x,3)) %>% apply(1,as.character))/130,decreasing=T)
-plot(frequencies3, ylab="Frequency", xlab="", las=2, main= "Subchallenge 3")
+frequencies3 <- sort(table(pattern3_all %>% map_dfc(~raw.selected.genes(.x,3)) %>% apply(1,as.character))/(length(pattern3_all)*10),decreasing=T)
+plot(frequencies3, ylab="Frequency", xlab="", las=2, main= "Subchallenge 3", ylim=c(0,1))
+
 
 
 #top-k plot
@@ -603,4 +609,57 @@ lines(overlap13, col="red")
 lines(seq(84) %>% map_dbl(~expected.jaccard(84,.x)), lty=3)
 
 
-legend(60,0.35,c("Subchallenge 1-2","Subchallenge 2-3","Subchallenge 1-3", "random"), col=c("green","blue","red", "black"), lty=c(1,1,1,3))
+legend(50,0.2,c("Subchallenge 1-2","Subchallenge 2-3","Subchallenge 1-3", "random"), col=c("green","blue","red", "black"), lty=c(1,1,1,3))
+
+
+#Features in subchallenge intersection
+write("Top k\tNumber of features in intersection\tFeatures",file = "intersect_features_cv.txt")
+
+seq(10,60) %>% walk(function(k){
+  feat <- intersect(intersect(names(frequencies1)[1:k],names(frequencies2)[1:k]),names(frequencies3)[1:k])
+  write_delim(tibble(k,length(feat),paste0(feat,collapse = "\t")),path = "intersect_features_cv.txt", col_names = F, append = T)
+})
+
+
+#there is an application at https://shiny.mdc-berlin.de/DVEX/
+insitus <- dm@insitu.matrix
+geom <- data.frame(cbind(dm@geometry,apply(insitus,2,rep,2)))
+
+# p1 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~brk, colors = c("#AAAAAA","#990000"), scene = "scene1") %>% add_markers(name = "brk") %>% hide_colorbar()
+# p2 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~nub, colors = c("#AAAAAA","#009900"), scene = "scene2") %>% add_markers(name = "nub") %>% hide_colorbar()
+# p3 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~tsh, colors = c("#AAAAAA","#000099"), scene = "scene3") %>% add_markers(name = "tsh") %>% hide_colorbar()
+# p4 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~Antp, colors = c("#AAAAAA","#999900"), scene = "scene4") %>% add_markers(name = "Antp") %>% hide_colorbar()
+# 
+# p <- subplot(p1, p2, p3, p4) %>%
+#   layout(
+#          scene = list(domain=list(x=c(0,0.5),y=c(0.5,1)), aspectmode='auto', title="Test"),
+#          scene2 = list(domain=list(x=c(0.5,1),y=c(0.5,1)), aspectmode='auto'),
+#          scene3 = list(domain=list(x=c(0,0.5),y=c(0,0.5)), aspectmode='auto'),
+#          scene4 = list(domain=list(x=c(0.5,1),y=c(0,0.5)), aspectmode='auto'),
+#          showlegend = FALSE)
+
+
+neighbors <- get.knnx(dm@geometry, dm@geometry, k=11)$nn.index[,-1]
+
+spatial.stats <- colnames(insitus) %>% map_dfr(function(gene){
+  probs <- table(insitus[,gene])/nrow(insitus)
+  entropy <- sum(-probs * log2(probs))
+  
+  xbar <- mean(insitus[,gene])
+  invvar <- 1/var(insitus[,gene])
+  
+  #spatial weight 1 for the 10 nearest neighbors
+  MoranI <- (seq(nrow(dm@geometry)) %>% map_dbl(function(id1){
+    sum((geom[id1,gene] - xbar) * (geom[neighbors[id1,],gene] - xbar))
+  }) %>% sum) * invvar*nrow(dm@geometry)/((nrow(dm@geometry)*10)*(nrow(dm@geometry) - 1))
+  
+  GearyC <- (seq(nrow(dm@geometry)) %>% map_dbl(function(id1){
+    sum((geom[id1,gene] - geom[neighbors[id1,],gene])^2)
+  }) %>% sum) * invvar/(2*nrow(dm@geometry)*10)
+  
+  print(gene)
+  data.frame(gene = gene, entropy = entropy, MoranI=MoranI, GearyC=GearyC)
+})
+
+
+
