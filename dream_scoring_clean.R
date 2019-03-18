@@ -621,22 +621,8 @@ seq(10,60) %>% walk(function(k){
 })
 
 
-#there is an application at https://shiny.mdc-berlin.de/DVEX/
 insitus <- dm@insitu.matrix
 geom <- data.frame(cbind(dm@geometry,apply(insitus,2,rep,2)))
-
-# p1 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~brk, colors = c("#AAAAAA","#990000"), scene = "scene1") %>% add_markers(name = "brk") %>% hide_colorbar()
-# p2 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~nub, colors = c("#AAAAAA","#009900"), scene = "scene2") %>% add_markers(name = "nub") %>% hide_colorbar()
-# p3 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~tsh, colors = c("#AAAAAA","#000099"), scene = "scene3") %>% add_markers(name = "tsh") %>% hide_colorbar()
-# p4 <- plot_ly(data.frame(geom),x=~x, y=~y, z=~z, color= ~Antp, colors = c("#AAAAAA","#999900"), scene = "scene4") %>% add_markers(name = "Antp") %>% hide_colorbar()
-# 
-# p <- subplot(p1, p2, p3, p4) %>%
-#   layout(
-#          scene = list(domain=list(x=c(0,0.5),y=c(0.5,1)), aspectmode='auto', title="Test"),
-#          scene2 = list(domain=list(x=c(0.5,1),y=c(0.5,1)), aspectmode='auto'),
-#          scene3 = list(domain=list(x=c(0,0.5),y=c(0,0.5)), aspectmode='auto'),
-#          scene4 = list(domain=list(x=c(0.5,1),y=c(0,0.5)), aspectmode='auto'),
-#          showlegend = FALSE)
 
 
 neighbors <- get.knnx(dm@geometry, dm@geometry, k=11)$nn.index[,-1]
