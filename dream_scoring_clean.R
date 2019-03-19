@@ -109,7 +109,7 @@ score <- function(path,sub){
   
   if (!exists("dm")) initialize()
   
-  submission <- read.csv(path,header=FALSE,stringsAsFactors = FALSE)
+  submission <- read.csv(path,header=FALSE,stringsAsFactors = FALSE,na.strings = "")
   
   #separate the gene names from the location predictions
   gene.lines <- (4-sub)*2
@@ -117,7 +117,7 @@ score <- function(path,sub){
   locations <- submission %>% slice(-1:-gene.lines)
   
   #preprocess genes and locations, remove NAs, sort locations by cellid
-  genes <- genes %>% select(-1) %>% unlist %>% as.character
+  genes <- na.omit(genes %>% select(-1) %>% unlist %>% as.character)
   locations <- locations[order(locations[,1]),] %>% select(-1) %>% apply(2,as.numeric)
   
   #do the same mapping for the submission as for d48
@@ -129,7 +129,7 @@ score <- function(path,sub){
   pk <- d84/dsub
   
   #s1
-  
+
   #select fluorescence data only for the submitted subset of genes
   reduced.insitu <- data.frame(dm@insitu.matrix) %>% select(genes)
   #get binarized data from distmap
