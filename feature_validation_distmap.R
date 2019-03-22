@@ -1,4 +1,5 @@
 source("dream_scoring_clean.R")
+library(tidyr)
 
 
 reduced.DistMap <- function(gene.names, output.file){
@@ -95,7 +96,7 @@ reduced.DistMap <- function(gene.names, output.file){
 lines <- read_lines("post analysis/intersect_features.txt", skip = 1)
 
 lines %>% walk(function(line){
-  
+
   splitted <- str_split(line, "\\s")[[1]]
   out.filename <- paste0("validation/", paste(splitted[1:2],collapse="."), ".txt")
   reduced.DistMap(splitted[-(1:2)],out.filename)
@@ -103,10 +104,48 @@ lines %>% walk(function(line){
   if(as.numeric(splitted[2]) <= 60) sub <- 1
   if(as.numeric(splitted[2]) <= 40) sub <- 2
   if(as.numeric(splitted[2]) <= 20) sub <- 3
-  
+
   scores <- score(out.filename,sub)
-  
+
   write(c(out.filename,scores), file = "validation_results.txt", ncolumns = 4,  append = T)
 })
+
+
+insitu.matrix = read.table(gzfile("binarized_bdtnp.csv.gz",'rt'), sep = ",",header = T)
+
+colnames(insitu.matrix) <- make.names(colnames(insitu.matrix))
+
+
+#generate and score random samples
+seq(100) %>% walk(function(seed){
+  set.seed(seed)
+  gene.sample <- sample(colnames(insitu.matrix),60)
+  
+  
+  reduced.DistMap(gene.sample,paste0("temp",seed))
+  scores <- score(paste0("temp",seed),1)
+  
+  write_lines(paste(c(gene.sample,scores),collapse = ","),path = "validation_distmap_sub1.csv",append = T)
+  
+  reduced.DistMap(gene.sample[1:40],paste0("temp",seed))
+  scores <- score(paste0("temp",seed),2)
+  
+  write_lines(paste(c(gene.sample[1:40],scores),collapse = ","),path = "validation_distmap_sub2.csv",append = T)
+  
+  reduced.DistMap(gene.sample[1:20], paste0("temp",seed))
+  scores <- score(paste0("temp",seed),3)
+  
+  write_lines(paste(c(gene.sample[1:20],scores),collapse = ","),path = "validation_distmap_sub3.csv",append = T)
+  
+  file.remove(paste0("temp",seed))
+})
+
+
+#collect and plot
+scores <- seq(3) %>% map_dfr(~read_csv(paste0("validation_distmap_sub",.x,".csv"), col_names = FALSE, col_types = cols()) %>%
+                  select_if(is.numeric) %>% mutate(subc=.x) %>% setNames(c("s1","s2","s3","subc")) %>% gather("score","value", -subc))
+
+ggplot(scores, aes(as.factor(subc),value, fill=score)) + geom_violin(trim=FALSE, draw_quantiles = c(0.25,0.5,0.75), position = position_dodge(0.6)) +
+  labs(x="Subchallenge", y="Value", fill="Score") + theme_classic()
 
 
