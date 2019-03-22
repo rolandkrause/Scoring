@@ -1,5 +1,5 @@
 source("dream_scoring_clean.R")
-library(tidyr)
+library(tidyverse)
 
 
 reduced.DistMap <- function(gene.names, output.file){
@@ -93,7 +93,7 @@ reduced.DistMap <- function(gene.names, output.file){
 }
 
 #path to file with intersection of genes across subchallenges
-lines <- read_lines("post analysis/intersect_features.txt", skip = 1)
+lines <- read_lines("post analysis/intersect_features_cv.txt", skip = 1)
 
 lines %>% walk(function(line){
 
@@ -148,4 +148,20 @@ scores <- seq(3) %>% map_dfr(~read_csv(paste0("validation_distmap_sub",.x,".csv"
 ggplot(scores, aes(as.factor(subc),value, fill=score)) + geom_violin(trim=FALSE, draw_quantiles = c(0.25,0.5,0.75), position = position_dodge(0.6)) +
   labs(x="Subchallenge", y="Value", fill="Score") + theme_classic()
 
+ss <- read_csv("spatial.stats.csv")
+tidyss <- ss %>% select(-4) %>% gather("measure","value",-gene)
 
+cv_genes <- str_split(lines[[37]],"\\s")[[1]][-(1:2)]
+cv_genes_ss <- tidyss %>% filter(gene %in% cv_genes)
+
+ggplot(tidyss, aes(measure,value, fill = measure)) + geom_violin(trim=F, draw_quantiles = c(0.25,0.5,0.75)) + labs(y="Value", x=element_blank(), fill = "Measure") + 
+  geom_jitter(data=cv_genes_ss, aes(x=measure, y=value), colour="black", width=0.1)  + 
+  coord_flip() + theme_classic() + theme(axis.text.y = element_blank())
+
+
+shapiro.test(tidyss %>%  filter(measure=="entropy") %>% pull(value))
+shapiro.test(tidyss %>%  filter(measure=="MoranI") %>% pull(value))
+
+#Mann-Whitney U test since the distributions are not normal Shapiro-Wilk rejects normality
+wilcox.test(tidyss %>%  filter(measure=="entropy") %>% pull(value), cv_genes_ss %>% filter(measure=="entropy") %>% pull(value), alternative = "less")
+wilcox.test(tidyss %>%  filter(measure=="MoranI") %>% pull(value), cv_genes_ss %>% filter(measure=="MoranI") %>% pull(value), alternative = "less")
