@@ -2,13 +2,11 @@
 #Defines the scoring metrics
 
 library(DistMap)
-library(purrr)
-library(dplyr)
+library(tidyverse)
 library(mccr)
 library(caret)
 library(synapser)
-library(stringr)
-library(readr)
+
 
 #Use Attila's code to donwload, load data and initialize the environment for scoring <- syn16782361
 initialize <- function(){

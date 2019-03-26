@@ -1,5 +1,6 @@
 source("dream_scoring_clean.R")
 library(FNN)
+library(gridExtra)
 
 if (!exists("dm")) initialize()
 
@@ -60,14 +61,6 @@ expected.jaccard <- function(n,m){
   }) %>% sum
 }
 
-pattern1_all <- as.character(patterns$pattern1[-9])
-pattern2_all <- as.character(patterns$pattern2[-9])
-pattern3_all <- as.character(patterns$pattern3[-9])
-team_all <- as.character(patterns$Team[-9])
-
-.pardefault <- par()
-par(mfrow=c(1,3), mar = c(5,2,4,2) + 0.1, oma = c(1,8,1,1))
-
 sub1_genes <- map2_dfc(team_all, pattern1_all, function(x,y){
   team.stats <- data.frame(jaccard.genes(y,1))
   colnames(team.stats)[1] <- x
@@ -75,19 +68,22 @@ sub1_genes <- map2_dfc(team_all, pattern1_all, function(x,y){
 })
 
 sub1_genes <- sub1_genes[,rev(colnames(sub1_genes))]
+s1g <- ggplot(sub1_genes %>% select(-random) %>% gather(key="team", value="jac", factor_key=TRUE), aes(x=team, y=jac)) + geom_boxplot() +
+  geom_hline(yintercept=expected.jaccard(84,60), linetype="dashed") +
+  ylim(0.1,1) + labs(title="Subchallenge 1", y="Jaccard similarity", x=element_blank()) + theme_classic() + coord_flip()
 
-boxplot(sub1_genes, horizontal = T, ylim = c(0.1,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 1")
-abline(v=expected.jaccard(84,60), lty=3)
 
 sub2_genes <- map2_dfc(team_all, pattern2_all, function(x,y){
   team.stats <- data.frame(jaccard.genes(y,2))
   colnames(team.stats)[1] <- x
   team.stats
 })
-sub2_genes <- sub2_genes[,rev(colnames(sub2_genes))]
 
-boxplot(sub2_genes, horizontal = T, ylim = c(0.1,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 2", names = F)
-abline(v=expected.jaccard(84,40), lty=3)
+sub2_genes <- sub2_genes[,rev(colnames(sub2_genes))]
+s2g <- ggplot(sub2_genes %>% select(-random) %>% gather(key="team", value="jac", factor_key=TRUE), aes(x=team, y=jac)) + geom_boxplot() +
+  geom_hline(yintercept=expected.jaccard(84,40), linetype="dashed") +
+  ylim(0.1,1) + labs(title="Subchallenge 2",y="Jaccard similarity", x=element_blank()) + theme_classic() + coord_flip()
+
 
 sub3_genes <- map2_dfc(team_all, pattern3_all, function(x,y){
   team.stats <- data.frame(jaccard.genes(y,3))
@@ -96,9 +92,11 @@ sub3_genes <- map2_dfc(team_all, pattern3_all, function(x,y){
 })
 
 sub3_genes <- sub3_genes[,rev(colnames(sub3_genes))]
+s3g <- ggplot(sub3_genes %>% select(-random) %>% gather(key="team", value="jac", factor_key=TRUE), aes(x=team, y=jac)) + geom_boxplot() +
+  geom_hline(yintercept=expected.jaccard(84,20), linetype="dashed") +
+  ylim(0.1,1) + labs(title="Subchallenge 3",y="Jaccard similarity", x=element_blank()) + theme_classic() + coord_flip()
 
-boxplot(sub3_genes, horizontal = T, ylim = c(0.1,1),las=2, xlab= "Jaccard similarity", main="Subchallenge 3", names = F)
-abline(v=expected.jaccard(84,20), lty=3)
+grid.arrange(s1g,s2g,s3g,ncol=3)
 
 raw.selected.genes <- function(pattern, sub){
   all.submissions <- seq(10) %>% map(~read.csv(str_glue(pattern),header=FALSE,stringsAsFactors = FALSE))
@@ -118,14 +116,29 @@ raw.selected.genes <- function(pattern, sub){
 par(.pardefault)
 
 frequencies1 <- sort(table(pattern1_all %>% map_dfc(~raw.selected.genes(.x,1)) %>% apply(1,as.character))/(length(pattern1_all)*10),decreasing=T)
-plot(frequencies1, ylab="Frequency", xlab="", las=2, main= "Subchallenge 1", ylim=c(0,1))
+
+
+ggplot(tibble(genes=factor(names(frequencies1),levels=names(frequencies1)), freq=as.numeric(frequencies1)), aes(x=genes, y=freq)) + 
+   geom_point(stat="identity", shape=21, size=3, fill=alpha("blue",0.4)) +  geom_segment(aes(x=genes, xend=genes, y=0, yend=freq-0.005)) +
+   ylim(0,1) + labs(title="Subchallenge 1", x=element_blank(), y="Frequency") + theme_classic() + theme(axis.text.x= element_text(angle=90, hjust = 1))
+
+write(names(frequencies1)[1:60], "most.freq.txt", ncolumns=60, append = T)
 
 frequencies2 <- sort(table(pattern2_all %>% map_dfc(~raw.selected.genes(.x,2)) %>% apply(1,as.character))/(length(pattern2_all)*10),decreasing=T)
-plot(frequencies2, ylab="Frequency", xlab="", las=2, main= "Subchallenge 2", ylim=c(0,1))
+
+ggplot(tibble(genes=factor(names(frequencies2),levels=names(frequencies2)), freq=as.numeric(frequencies2)), aes(x=genes, y=freq)) + 
+  geom_point(stat="identity", shape=21, size=3, fill=alpha("green",0.4)) +  geom_segment(aes(x=genes, xend=genes, y=0, yend=freq-0.005)) +
+  ylim(0,1) + labs(title="Subchallenge 2", x=element_blank(), y="Frequency") + theme_classic() + theme(axis.text.x= element_text(angle=90, hjust = 1))
+
+write(names(frequencies2)[1:40], "most.freq.txt", ncolumns=40, append = T)
 
 frequencies3 <- sort(table(pattern3_all %>% map_dfc(~raw.selected.genes(.x,3)) %>% apply(1,as.character))/(length(pattern3_all)*10),decreasing=T)
-plot(frequencies3, ylab="Frequency", xlab="", las=2, main= "Subchallenge 3", ylim=c(0,1))
 
+ggplot(tibble(genes=factor(names(frequencies3),levels=names(frequencies3)), freq=as.numeric(frequencies3)), aes(x=genes, y=freq)) + 
+  geom_point(stat="identity", shape=21, size=3, fill=alpha("red",0.4)) +  geom_segment(aes(x=genes, xend=genes, y=0, yend=freq-0.005)) +
+  ylim(0,1) +labs(title="Subchallenge 3", x=element_blank(), y="Frequency") + theme_classic() + theme(axis.text.x= element_text(angle=90, hjust = 1))
+
+write(names(frequencies3)[1:20], "most.freq.txt", ncolumns=20, append = T)
 
 
 #top-k plot
@@ -149,14 +162,16 @@ overlap13 <- seq(min(length(frequencies1),length(frequencies3)))  %>% map_dbl(fu
   length(intersect(s1,s2))/length(union(s1,s2))
 })
 
-plot(overlap12, type="l", col="green", ylab="Jaccard", xlab="Top K selected genes by frequency", ylim=c(0,1))
-lines(overlap23, col="blue")
-lines(overlap13, col="red")
+overlap12 <- c(overlap12, rep(NA,84 - (length(overlap12) %% 84)))
+overlap23 <- c(overlap23, rep(NA,84 - (length(overlap23) %% 84)))
+overlap13 <- c(overlap13, rep(NA,84 - (length(overlap13) %% 84)))
 
-lines(seq(84) %>% map_dbl(~expected.jaccard(84,.x)), lty=3)
-
-
-legend(50,0.2,c("Subchallenge 1-2","Subchallenge 2-3","Subchallenge 1-3", "random"), col=c("green","blue","red", "black"), lty=c(1,1,1,3))
+ggplot(tibble(topk = seq(84), overlap12,overlap23,overlap13), aes(x=topk)) +
+  geom_line(aes(y=overlap12, color = "a")) + geom_line(aes(y=overlap23, color = "b")) + geom_line(aes(y=overlap13, color = "c")) +
+  geom_line(aes(y=seq(84) %>% map_dbl(~expected.jaccard(84,.x)), color = "d"), linetype="dashed") + 
+  labs(x="Top k genes per subchallenge", y="Jaccard similarity") + 
+  scale_colour_manual(name = "",  values = c("a" = alpha("blue",0.6), "b" = alpha("green",0.6), "c" = alpha("red",0.6), d = "gray"), labels = c("Subchallenge 1-2", "Subchallenge 2-3","Subchallenge 1-3", "Random")) + 
+  theme_classic() #+ theme(legend.position = c(50,0.2))
 
 
 #Features in subchallenge intersection
