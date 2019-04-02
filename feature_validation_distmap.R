@@ -1,5 +1,5 @@
 source("dream_scoring_clean.R")
-
+library(gridExtra)
 
 reduced.DistMap <- function(gene.names, output.file){
 
@@ -167,7 +167,7 @@ ecdf(scores %>% filter(subc==3, score=="s3") %>% pull(value))(top.sub[[3]][3])
 ss <- read_csv("spatial.stats.csv")
 tidyss <- ss %>% select(-4) %>% gather("measure","value",-gene)
 
-cv_genes <- str_split(lines[[37]],"\\s")[[1]][-(1:2)]
+cv_genes <- (str_split(lines[[37]],"\\s")[[1]])[-c(1,2)]
 cv_genes_ss <- tidyss %>% filter(gene %in% cv_genes)
 
 ggplot(tidyss, aes(measure,value, fill = measure)) + geom_violin(trim=F, draw_quantiles = c(0.25,0.5,0.75)) + labs(y="Value", x=element_blank(), fill = "Measure") + 
@@ -182,7 +182,7 @@ shapiro.test(tidyss %>%  filter(measure=="MoranI") %>% pull(value))
 wilcox.test(tidyss %>%  filter(measure=="entropy") %>% pull(value), cv_genes_ss %>% filter(measure=="entropy") %>% pull(value), alternative = "less")
 wilcox.test(tidyss %>%  filter(measure=="MoranI") %>% pull(value), cv_genes_ss %>% filter(measure=="MoranI") %>% pull(value), alternative = "less")
 
-topk.genes <- read_lines("post analysis/most.freq.txt") %>% map(~str_split(.x, " ",simplify=T))
+topk.genes <- read_lines("post analysis/chal.most.freq.txt") %>% map(~str_split(.x, " ",simplify=T))
 
 spate1 <- ggplot(tidyss, aes(measure,value, fill = measure)) + geom_violin(draw_quantiles = c(0.25,0.5,0.75)) + 
    labs(title="Subchallenge 1", y="Value", x=element_blank(), fill = "Measure") + scale_fill_brewer(palette="Greens") +
