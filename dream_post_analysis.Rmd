@@ -1,0 +1,402 @@
+---
+title: "DREAM SCTC post-challenge analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Initialization
+
+
+Load the functions from the scoring script used for the challenge and additional functions needed for the post challenge analysis
+```{r message=FALSE}
+source("dream_scoring_clean.R")
+source("post_analysis_functions.R")
+```
+
+Initialize the DistMap object containing all data and the ground truth
+```{r}
+if (!exists("dm")) initialize()
+```
+
+Define the team name and path patterns needed to reach their sumbissions
+```{r}
+team_all <- c("BCBU", "Challengers18", "Challengers18 Official", "Christoph Hafemeister", "DeepCMC", "MLB", "NAD", "OmicsEngineering", "random", "Thin Nguyen", "WhatATeam", "Zho")
+
+pattern1_all <- c(
+  "post/BCBU_bin/BCBU_60_{.}.csv", "post/challengers18_CV/60genes_{.}.csv",
+  "post/challengers18_official_submisison_CV/60genes_{.}.csv",
+  "post/cv_results_christoph_hafemeister/60genes_{.}.csv",
+  "post/DeepCMC_SubmissionFiles_CV_DistMapTrainTest/60genes_a_{.}_test.csv",
+  "post/Team_MLB_10foldCV_predictions_v2/60genes_{.}.csv",
+  "post/NAD_Result/60genes_{.}.csv",
+  "post/OmicsEngineering_new/subchallenge1_submission/gene60_testfold{.}_index.csv",
+  "post/random/random_{.}_.r60.genes.csv", "post/thinnguyen_ten_fold_binarized/60genes_{.}.csv",
+  "post/WhatATeam/60genes_{.}.csv", "post/post_challenge_zho_team/results/60genes_{.}_.csv"
+)
+pattern2_all <- c(
+  "post/BCBU_bin/BCBU_40_{.}.csv", "post/challengers18_CV/40genes_{.}.csv",
+  "post/challengers18_official_submisison_CV/40genes_{.}.csv",
+  "post/cv_results_christoph_hafemeister/40genes_{.}.csv",
+  "post/DeepCMC_SubmissionFiles_CV_DistMapTrainTest/40genes_a_{.}_test.csv",
+  "post/Team_MLB_10foldCV_predictions_v2/40genes_{.}.csv",
+  "post/NAD_Result/40genes_{.}.csv",
+  "post/OmicsEngineering_new/subchallenge2_submission/gene40_testfold{.}_index.csv",
+  "post/random/random_{.}_.r40.genes.csv", "post/thinnguyen_ten_fold_binarized/40genes_{.}.csv",
+  "post/WhatATeam/40genes_{.}.csv", "post/post_challenge_zho_team/results/40genes_{.}_.csv"
+)
+pattern3_all <- c(
+  "post/BCBU_bin/BCBU_20_{.}.csv", "post/challengers18_CV/20genes_{.}.csv",
+  "post/challengers18_official_submisison_CV/20genes_{.}.csv",
+  "post/cv_results_christoph_hafemeister/20genes_{.}.csv",
+  "post/DeepCMC_SubmissionFiles_CV_DistMapTrainTest/20genes_a_{.}_test.csv",
+  "post/Team_MLB_10foldCV_predictions_v2/20genes_{.}.csv",
+  "post/NAD_Result/20genes_{.}.csv",
+  "post/OmicsEngineering_new/subchallenge3_submission/gene20_testfold{.}_index.csv",
+  "post/random/random_{.}_.r20.genes.csv", "post/thinnguyen_ten_fold_binarized/20genes_{.}.csv",
+  "post/WhatATeam/20genes_{.}.csv", "post/post_challenge_zho_team/results/20genes_{.}_.csv"
+)
+```
+
+# Stability of gene selection per team
+
+Calculate the stability of gene selection per team and per subchallenge using Jacard similarity across folds and generate boxplots.
+```{r}
+sub1_genes <- map2_dfc(team_all, pattern1_all, function(x, y) {
+  team.stats <- data.frame(jaccard.genes(y, 1))
+  colnames(team.stats)[1] <- x
+  team.stats
+})
+
+sub1_genes <- sub1_genes[, rev(colnames(sub1_genes))]
+s1g <- ggplot(sub1_genes %>% select(-random) %>%
+  gather(key = "team", value = "jac", factor_key = TRUE), aes(x = team, y = jac)) +
+  geom_boxplot() +
+  geom_hline(yintercept = expected.jaccard(84, 60), linetype = "dashed") +
+  ylim(0.1, 1) + labs(title = "Subchallenge 1", y = "Jaccard similarity", x = element_blank()) +
+  theme_classic() + coord_flip()
+
+
+sub2_genes <- map2_dfc(team_all, pattern2_all, function(x, y) {
+  team.stats <- data.frame(jaccard.genes(y, 2))
+  colnames(team.stats)[1] <- x
+  team.stats
+})
+
+sub2_genes <- sub2_genes[, rev(colnames(sub2_genes))]
+s2g <- ggplot(sub2_genes %>% select(-random) %>%
+  gather(key = "team", value = "jac", factor_key = TRUE), aes(x = team, y = jac)) +
+  geom_boxplot() +
+  geom_hline(yintercept = expected.jaccard(84, 40), linetype = "dashed") +
+  ylim(0.1, 1) + labs(title = "Subchallenge 2", y = "Jaccard similarity", x = element_blank()) +
+  theme_classic() + coord_flip()
+
+
+sub3_genes <- map2_dfc(team_all, pattern3_all, function(x, y) {
+  team.stats <- data.frame(jaccard.genes(y, 3))
+  colnames(team.stats)[1] <- x
+  team.stats
+})
+
+sub3_genes <- sub3_genes[, rev(colnames(sub3_genes))]
+s3g <- ggplot(sub3_genes %>% select(-random) %>%
+  gather(key = "team", value = "jac", factor_key = TRUE), aes(x = team, y = jac)) +
+  geom_boxplot() +
+  geom_hline(yintercept = expected.jaccard(84, 20), linetype = "dashed") +
+  ylim(0.1, 1) + labs(title = "Subchallenge 3", y = "Jaccard similarity", x = element_blank()) +
+  theme_classic() + coord_flip()
+
+grid.arrange(s1g, s2g, s3g, ncol = 3)
+```
+
+#Figure 2
+
+Calculate the times each gene was selected per subchallenge and save the top 60, 40 and 20 genes in a list
+Create a barplot to show the counts
+```{r}
+frequencies1 <- sort(table(pattern1_all %>%
+  map_dfc(~ raw.selected.genes(.x, 1)) %>%
+  apply(1, as.character)), decreasing = T)
+topk.genes <- list(names(frequencies1)[1:60])
+frequencies2 <- sort(table(pattern2_all %>%
+  map_dfc(~ raw.selected.genes(.x, 2)) %>%
+  apply(1, as.character)), decreasing = T)
+topk.genes <- append(topk.genes, list(names(frequencies2)[1:40]))
+frequencies3 <- sort(table(pattern3_all %>%
+  map_dfc(~ raw.selected.genes(.x, 3)) %>%
+  apply(1, as.character)), decreasing = T)
+topk.genes <- append(topk.genes, list(names(frequencies3)[1:20]))
+
+
+cumulative <- tibble(gene = names(frequencies1), Subchallenge = 1, value = frequencies1)
+cumulative <- rbind(cumulative, tibble(gene = names(frequencies2), Subchallenge = 2, value = frequencies2))
+cumulative <- rbind(cumulative, tibble(gene = names(frequencies3), Subchallenge = 3, value = frequencies3))
+
+cumulative$Subchallenge <- as.factor(cumulative$Subchallenge)
+cumulative$gene <- factor(cumulative$gene, levels = cumulative %>% group_by(gene) %>%
+  summarise(sum(value)) %>% arrange(desc(`sum(value)`), gene) %>%
+  pull(gene))
+
+# Figure 2 cumulative plot
+ggplot(cumulative, aes(x = gene, y = value, fill = Subchallenge, width = .75)) + geom_bar(stat = "identity") +
+  scale_fill_manual(values = c(alpha("blue", 0.4), alpha("green", 0.4), alpha("red", 0.4))) +
+  labs(x = element_blank(), y = "Frequency") +
+  theme_classic() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+Calculate the rank correlation between the subchallenges
+```{r}
+m <- tibble(gene = c(names(frequencies1), names(frequencies2)), f = c(frequencies1, frequencies2)) %>%
+  group_by(gene) %>%
+  summarize(f = sum(f))
+f2 <- m$f - frequencies1[sort(names(frequencies1))]
+m <- tibble(gene = c(names(frequencies1), names(frequencies3)), f = c(frequencies1, frequencies3)) %>%
+  group_by(gene) %>%
+  summarize(f = sum(f))
+f3 <- m$f - frequencies1[sort(names(frequencies1))]
+
+cor(rank(-frequencies1[sort(names(frequencies1))]), rank(-f2))
+cor(rank(-f2), rank(-f3))
+cor(rank(-frequencies1[sort(names(frequencies1))]), rank(-f3))
+```
+
+
+Using the the frequency tables create venn diagrams for the top 20, 40 and 60 genes. The venn diagrams are saved as tiff files.
+```{r eval=FALSE}
+c(20, 40, 60) %>% walk(~ venn.diagram(list(
+  "Subchallenge 1" = names(frequencies1)[1:.x],
+  "Subchallenge 2" = names(frequencies2)[1:.x],
+  "Subchallenge 3" = names(frequencies3)[1:.x]
+),
+filename = paste0("venn", .x, ".tiff"), cex = 2, cat.cex = 2, margin = 0.2
+))
+```
+
+
+Plot the Jaccard similarities between the top-k frequently selected genes in pairs of subchallenges
+```{r warning=FALSE}
+overlap12 <- seq(min(length(frequencies1), length(frequencies2))) %>%
+  map_dbl(function(c) {
+    s1 <- names(frequencies1)[1:c]
+    s2 <- names(frequencies2)[1:c]
+    length(intersect(s1, s2)) / length(union(s1, s2))
+  })
+
+overlap23 <- seq(min(length(frequencies2), length(frequencies3))) %>%
+  map_dbl(function(c) {
+    s1 <- names(frequencies2)[1:c]
+    s2 <- names(frequencies3)[1:c]
+    length(intersect(s1, s2)) / length(union(s1, s2))
+  })
+
+overlap13 <- seq(min(length(frequencies1), length(frequencies3))) %>%
+  map_dbl(function(c) {
+    s1 <- names(frequencies1)[1:c]
+    s2 <- names(frequencies3)[1:c]
+    length(intersect(s1, s2)) / length(union(s1, s2))
+  })
+
+overlap12 <- c(overlap12, rep(NA, 84 - (length(overlap12) %% 84)))
+overlap23 <- c(overlap23, rep(NA, 84 - (length(overlap23) %% 84)))
+overlap13 <- c(overlap13, rep(NA, 84 - (length(overlap13) %% 84)))
+
+ggplot(tibble(topk = seq(84), overlap12, overlap23, overlap13), aes(x = topk)) +
+  geom_line(aes(y = overlap12, color = "a")) + geom_line(aes(y = overlap23, color = "b")) +
+  geom_line(aes(y = overlap13, color = "c")) +
+  geom_line(aes(y = seq(84) %>% map_dbl(~ expected.jaccard(84, .x)), color = "d"), linetype = "dashed") +
+  labs(x = "Top k genes per subchallenge", y = "Jaccard similarity") +
+  scale_colour_manual(
+    name = "", values = c(
+      "a" = alpha("blue", 0.6),
+      "b" = alpha("green", 0.6),
+      "c" = alpha("red", 0.6), d = "gray"
+    ),
+    labels = c("Subchallenge 1-2", "Subchallenge 2-3", "Subchallenge 1-3", "Random")
+  ) +
+  theme_classic()
+```
+
+
+Validate the topk selected genes using DistMap. Generate null distributions by drawing 100 samples of gene sets. Draw violin plots of the distributions of the three scores. To compare to the topk selected genes by the teams, calculate the ECDF and the score percentile of the DistMap with topk genes.
+```{r}
+
+insitu.matrix <- dm@insitu.matrix
+colnames(insitu.matrix) <- make.names(colnames(insitu.matrix))
+
+# generate and score random samples, this takes a while, so write the results
+seq(100) %>% walk(function(seed) {
+  set.seed(seed)
+  gene.sample <- sample(colnames(insitu.matrix), 60)
+
+
+  reduced.DistMap(gene.sample, paste0("temp", seed))
+  scores <- score(paste0("temp", seed), 1)
+
+  write_lines(paste(c(gene.sample, scores), collapse = ","), 
+              path = "validation_distmap_sub1.csv", append = T)
+
+  reduced.DistMap(gene.sample[1:40], paste0("temp", seed))
+  scores <- score(paste0("temp", seed), 2)
+
+  write_lines(paste(c(gene.sample[1:40], scores), collapse = ","), 
+              path = "validation_distmap_sub2.csv", append = T)
+
+  reduced.DistMap(gene.sample[1:20], paste0("temp", seed))
+  scores <- score(paste0("temp", seed), 3)
+
+  write_lines(paste(c(gene.sample[1:20], scores), collapse = ","), 
+              path = "validation_distmap_sub3.csv", append = T)
+
+  file.remove(paste0("temp", seed))
+})
+
+
+# collect and plot
+scores <- seq(3) %>% map_dfr(~ read_csv(paste0("validation_distmap_sub", .x, ".csv"), 
+                                        col_names = FALSE, col_types = cols()) %>%
+  select_if(is.numeric) %>%
+  mutate(subc = .x) %>%
+  setNames(c("s1", "s2", "s3", "subc")) %>%
+  gather("score", "value", -subc))
+
+top.sub <- topk.genes %>%
+  iwalk(~ reduced.DistMap(str_split(.x, " ", simplify = T), output.file = paste0("valid_topk", .y, ".txt"))) %>%
+  imap(~ score(paste0("valid_topk", .y, ".txt"), .y))
+
+ggplot(scores, aes(as.factor(subc), value, fill = score)) + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75), position = position_dodge(0.6)) +
+  scale_fill_brewer(palette = "Blues") + labs(title = "DistMap scores of top-k selected genes vs. null distributions", x = "Subchallenge", y = "Value", fill = "Score") +
+  geom_point(data = tibble(subc = rep(seq(3), each = 3) + rep(c(-0.2, 0, 0.2), 3), vals = top.sub %>% unlist()), shape = 21, size = 2, stroke = 1, inherit.aes = FALSE, aes(x = subc, y = vals), fill = "red") + theme_classic()
+
+# percentile scores
+ecdf(scores %>% filter(subc == 1, score == "s1") %>% pull(value))(top.sub[[1]][1])
+ecdf(scores %>% filter(subc == 1, score == "s2") %>% pull(value))(top.sub[[1]][2])
+ecdf(scores %>% filter(subc == 1, score == "s3") %>% pull(value))(top.sub[[1]][3])
+
+ecdf(scores %>% filter(subc == 2, score == "s1") %>% pull(value))(top.sub[[2]][1])
+ecdf(scores %>% filter(subc == 2, score == "s2") %>% pull(value))(top.sub[[2]][2])
+ecdf(scores %>% filter(subc == 2, score == "s3") %>% pull(value))(top.sub[[2]][3])
+
+ecdf(scores %>% filter(subc == 3, score == "s1") %>% pull(value))(top.sub[[3]][1])
+ecdf(scores %>% filter(subc == 3, score == "s2") %>% pull(value))(top.sub[[3]][2])
+ecdf(scores %>% filter(subc == 3, score == "s3") %>% pull(value))(top.sub[[3]][3])
+```
+
+
+
+# Figure 4
+
+Calculate spatial statistics per insitu gene, entropy and join count statistic. Plot the distribution of both measures (all genes vs frequently selected)
+```{r}
+
+# expression is symmetric
+insitus <- rbind(dm@insitu.matrix, dm@insitu.matrix)
+
+# get the 10 nearest neighbors and transform the results into an adjacency matrix
+neighbors <- get.knnx(dm@geometry, dm@geometry, k = 11)$nn.index[, -1]
+edge.list <- as_tibble(t(neighbors)) %>% gather(factor_key = TRUE)
+edge.list$key <- as.numeric(edge.list$key)
+w <- get.adjacency(graph.edgelist(as.matrix(edge.list), directed = TRUE))
+
+
+spatial.stats <- colnames(insitus) %>% map_dfr(function(gene) {
+  # entropy
+  probs <- table(insitus[, gene]) / nrow(insitus)
+  entropy <- sum(-probs * log2(probs))
+
+  # join counts
+  P_B <- sum(insitus[, gene]) / nrow(insitus)
+  P_W <- 1 - P_B
+  P_BW <- 2 * P_B * P_W
+
+  E_BW <- sum(w) * P_BW / 2
+
+  x1 <- sum(w)
+  x2 <- nrow(w) %>%
+    map_dbl(~ sum((w[, .] - w[., ])^2)) %>%
+    sum()
+  x3 <- nrow(w) %>%
+    map_dbl(~ (sum(w[., ] - sum(w[, .]))^2)) %>%
+    sum()
+
+  E_BW2 <- 0.25 * (2 * x2 * P_B * P_W + (x3 - 2 * x2) * P_B * P_W * (P_B + P_W - 2 / nrow(insitus)) + 4 * (x1^2 + x2 - x3) * P_B^2 * P_W^2)
+
+  sigma_BW <- sqrt(E_BW2 - E_BW^2)
+
+  BW <- seq(nrow(w)) %>%
+    map_dbl(~ ((w[., ] * (insitus[., gene] - insitus[, gene])^2) %>% sum())) %>%
+    sum()
+
+  zjoin <- (BW - E_BW) / sigma_BW
+
+  # print(gene)
+  data.frame(gene = gene, entropy = entropy, autoc = zjoin)
+})
+
+tidyss <- spatial.stats %>%
+  select(-4) %>%
+  gather("measure", "value", -gene)
+
+# violing plots
+ent <- tidyss %>%
+  filter(measure == "entropy") %>%
+  pull(value)
+autoc <- tidyss %>%
+  filter(measure == "autoc") %>%
+  pull(value)
+
+vioplot(ent, ent, ent, col = "darkseagreen1", plotCentre = "line", rectCol = "gray70", side = "left", ylim = c(0, 1))
+vioplot(tidyss %>% filter(gene %in% topk.genes[[1]], measure == "entropy") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[2]], measure == "entropy") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[3]], measure == "entropy") %>% pull(value), ylim = c(0, 1), col = "indianred1", plotCentre = "line", rectCol = "gray30", side = "right", add = T)
+title(xlab = "Subchallenge", ylab = "Entropy")
+
+vioplot(autoc, autoc, autoc, col = "darkseagreen1", plotCentre = "line", rectCol = "gray70", side = "left", ylim = c(-12, 12))
+vioplot(tidyss %>% filter(gene %in% topk.genes[[1]], measure == "autoc") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[2]], measure == "autoc") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[3]], measure == "autoc") %>% pull(value), ylim = c(-12, 12), col = "indianred1", plotCentre = "line", rectCol = "gray30", side = "right", add = T)
+title(xlab = "Subchallenge", ylab = "Spatial autocorrelation statistic")
+```
+
+Test for significance in difference
+```{r}
+# check for normality
+shapiro.test(tidyss %>% filter(measure == "entropy") %>% pull(value))
+shapiro.test(tidyss %>% filter(measure == "autoc") %>% pull(value))
+
+# Mann-Whitney U test since the distributions are not normal Shapiro-Wilk rejects normality
+# Note the change in sign for the tests, for entropy more is better, for auto correlation less is better
+wilcox.test(tidyss %>% filter(measure == "entropy") %>% pull(value), tidyss %>%
+  filter(gene %in% topk.genes[[1]]) %>% filter(measure == "entropy") %>%
+  pull(value), alternative = "less")
+wilcox.test(tidyss %>% filter(measure == "autoc") %>% pull(value), tidyss %>%
+  filter(gene %in% topk.genes[[1]]) %>% filter(measure == "autoc") %>%
+  pull(value), alternative = "greater")
+
+wilcox.test(tidyss %>% filter(measure == "entropy") %>% pull(value), tidyss %>%
+  filter(gene %in% topk.genes[[2]]) %>% filter(measure == "entropy") %>%
+  pull(value), alternative = "less")
+wilcox.test(tidyss %>% filter(measure == "autoc") %>% pull(value), tidyss %>%
+  filter(gene %in% topk.genes[[2]]) %>% filter(measure == "autoc") %>%
+  pull(value), alternative = "greater")
+
+wilcox.test(tidyss %>% filter(measure == "entropy") %>% pull(value), tidyss %>%
+  filter(gene %in% topk.genes[[3]]) %>% filter(measure == "entropy") %>%
+  pull(value), alternative = "less")
+wilcox.test(tidyss %>% filter(measure == "autoc") %>% pull(value), tidyss %>%
+  filter(gene %in% topk.genes[[3]]) %>% filter(measure == "autoc") %>%
+  pull(value), alternative = "greater")
+```
+
+Run tSNE for dimensionality reduction on a subset of the normalized transcriptomics data. Cluster the cells in the reduced space with DBSCAN. Draw the tSNE plots, embryos with cells colored according to the assigned cluster and grid of embryos with isolated points assigned to each cluster.
+
+```{r}
+trans.data <- t(dm@data)
+colnames(trans.data) <- make.names(colnames(trans.data))
+tsne1 <- Rtsne(as_tibble(trans.data) %>% select(names(frequencies1)[1:60]), theta = 0.01)
+tsne2 <- Rtsne(as_tibble(trans.data) %>% select(names(frequencies2)[1:40]), theta = 0.01)
+tsne3 <- Rtsne(as_tibble(trans.data) %>% select(names(frequencies3)[1:20]), theta = 0.01)
+
+tsneClus(tsne1,3.5,1)
+tsneClus(tsne2,3.5,2)
+tsneClus(tsne3,3.5,3)
+```
+
