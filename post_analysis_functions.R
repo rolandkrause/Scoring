@@ -6,6 +6,8 @@ library(Rtsne)
 library(dbscan)
 library(vioplot)
 
+#Some of the functions require the dm object to be available source the dream_scoring_clean.R and run initialize()
+
 jaccard.genes <- function(pattern, sub) {
   all.submissions <- seq(10) %>%
     map(~ read.csv(str_glue(pattern), header = FALSE, stringsAsFactors = FALSE))
@@ -57,6 +59,7 @@ raw.selected.genes <- function(pattern, sub) {
   return(selected.genes)
 }
 
+#requires dm!!
 plot_insitu <- function(gene.name, color = "cyan") {
   pattern <- tibble(
     x = dm@geometry[seq(1, 6078, by = 2), 1], z = dm@geometry[seq(1, 6078, by = 2), 3],
@@ -67,7 +70,7 @@ plot_insitu <- function(gene.name, color = "cyan") {
     theme(legend.position = "none")
 }
 
-
+#requires dm!!
 tsneClus <- function(tsne, eps, sub) {
   assignment <- dbscan(tsne$Y, eps, minPts = 10)$cluster
 
@@ -83,7 +86,7 @@ tsneClus <- function(tsne, eps, sub) {
   remaining <- which(!(seq(3039) %in% locations))
 
   geom <- tibble(x = dm@geometry[locations, 1], z = dm@geometry[locations, 3], Cluster = assignment)
-  geom <- rbind(geom, tibble(x = dm@geometry[remaining, 1], z = dm@geometry[remaining, 3], Cluster = 13))
+  geom <- rbind(geom, tibble(x = dm@geometry[remaining, 1], z = dm@geometry[remaining, 3], Cluster = length(unique(assignment))))
 
 
 
@@ -198,6 +201,7 @@ reduced.DistMap <- function(gene.names, output.file) {
   write.table(in.format, file = output.file, na = "", sep = ",", row.names = FALSE, col.names = FALSE, append = TRUE)
 }
 
+#requires dm!!
 plot_insitu <- function(gene.name, color="cyan"){
   pattern <- tibble(x=dm@geometry[seq(1,6078,by=2),1], z=dm@geometry[seq(1,6078,by=2),3], 
                     gene = as.factor(rep(dm@insitu.matrix[,gene.name], 2))[seq(1,6078,by=2)])

@@ -21,7 +21,7 @@ Initialize the DistMap object containing all data and the ground truth
 if (!exists("dm")) initialize()
 ```
 
-Define the team name and path patterns needed to reach their sumbissions
+Define the team name and path patterns needed to reach their submissions
 ```{r}
 team_all <- c("BCBU", "Challengers18", "Challengers18 Official", "Christoph Hafemeister", "DeepCMC", "MLB", "NAD", "OmicsEngineering", "random", "Thin Nguyen", "WhatATeam", "Zho")
 
@@ -115,7 +115,7 @@ grid.arrange(s1g, s2g, s3g, ncol = 3)
 
 Calculate the times each gene was selected per subchallenge and save the top 60, 40 and 20 genes in a list
 Create a barplot to show the counts
-```{r}
+```{r message=FALSE}
 frequencies1 <- sort(table(pattern1_all %>%
   map_dfc(~ raw.selected.genes(.x, 1)) %>%
   apply(1, as.character)), decreasing = T)
@@ -221,8 +221,7 @@ ggplot(tibble(topk = seq(84), overlap12, overlap23, overlap13), aes(x = topk)) +
 
 
 Validate the topk selected genes using DistMap. Generate null distributions by drawing 100 samples of gene sets. Draw violin plots of the distributions of the three scores. To compare to the topk selected genes by the teams, calculate the ECDF and the score percentile of the DistMap with topk genes.
-```{r}
-
+```{r eval=FALSE}
 insitu.matrix <- dm@insitu.matrix
 colnames(insitu.matrix) <- make.names(colnames(insitu.matrix))
 
@@ -253,7 +252,12 @@ seq(100) %>% walk(function(seed) {
   file.remove(paste0("temp", seed))
 })
 
+topk.genes %>%
+  iwalk(~ reduced.DistMap(str_split(.x, " ", simplify = T), output.file = paste0("valid_topk", .y, ".txt")))
 
+```
+
+```{r warning=FALSE}
 # collect and plot
 scores <- seq(3) %>% map_dfr(~ read_csv(paste0("validation_distmap_sub", .x, ".csv"), 
                                         col_names = FALSE, col_types = cols()) %>%
@@ -262,13 +266,15 @@ scores <- seq(3) %>% map_dfr(~ read_csv(paste0("validation_distmap_sub", .x, ".c
   setNames(c("s1", "s2", "s3", "subc")) %>%
   gather("score", "value", -subc))
 
-top.sub <- topk.genes %>%
-  iwalk(~ reduced.DistMap(str_split(.x, " ", simplify = T), output.file = paste0("valid_topk", .y, ".txt"))) %>%
-  imap(~ score(paste0("valid_topk", .y, ".txt"), .y))
+top.sub <-  seq(3) %>% imap(~ score(paste0("valid_topk", .y, ".txt"), .y))
 
-ggplot(scores, aes(as.factor(subc), value, fill = score)) + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75), position = position_dodge(0.6)) +
-  scale_fill_brewer(palette = "Blues") + labs(title = "DistMap scores of top-k selected genes vs. null distributions", x = "Subchallenge", y = "Value", fill = "Score") +
-  geom_point(data = tibble(subc = rep(seq(3), each = 3) + rep(c(-0.2, 0, 0.2), 3), vals = top.sub %>% unlist()), shape = 21, size = 2, stroke = 1, inherit.aes = FALSE, aes(x = subc, y = vals), fill = "red") + theme_classic()
+ggplot(scores, aes(as.factor(subc), value, fill = score)) + 
+  geom_violin(draw_quantiles = c(0.25, 0.5, 0.75), position = position_dodge(0.6)) +
+  scale_fill_brewer(palette = "Blues") + 
+  labs(title = "DistMap scores of top-k selected genes vs. null distributions", x = "Subchallenge", y = "Value", fill = "Score") +
+  geom_point(data = tibble(subc = rep(seq(3), each = 3) + rep(c(-0.2, 0, 0.2), 3), vals = top.sub %>% unlist()), 
+             shape = 21, size = 2, stroke = 1, inherit.aes = FALSE, aes(x = subc, y = vals), fill = "red") + 
+  theme_classic()
 
 # percentile scores
 ecdf(scores %>% filter(subc == 1, score == "s1") %>% pull(value))(top.sub[[1]][1])
@@ -285,11 +291,10 @@ ecdf(scores %>% filter(subc == 3, score == "s3") %>% pull(value))(top.sub[[3]][3
 ```
 
 
-
 # Figure 4
 
 Calculate spatial statistics per insitu gene, entropy and join count statistic. Plot the distribution of both measures (all genes vs frequently selected)
-```{r}
+```{r warning=FALSE}
 
 # expression is symmetric
 insitus <- rbind(dm@insitu.matrix, dm@insitu.matrix)
@@ -336,7 +341,6 @@ spatial.stats <- colnames(insitus) %>% map_dfr(function(gene) {
 })
 
 tidyss <- spatial.stats %>%
-  select(-4) %>%
   gather("measure", "value", -gene)
 
 # violing plots
@@ -348,11 +352,23 @@ autoc <- tidyss %>%
   pull(value)
 
 vioplot(ent, ent, ent, col = "darkseagreen1", plotCentre = "line", rectCol = "gray70", side = "left", ylim = c(0, 1))
-vioplot(tidyss %>% filter(gene %in% topk.genes[[1]], measure == "entropy") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[2]], measure == "entropy") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[3]], measure == "entropy") %>% pull(value), ylim = c(0, 1), col = "indianred1", plotCentre = "line", rectCol = "gray30", side = "right", add = T)
+vioplot(tidyss %>% filter(gene %in% topk.genes[[1]], measure == "entropy") %>% 
+          pull(value), 
+        tidyss %>% filter(gene %in% topk.genes[[2]], measure == "entropy") %>% 
+          pull(value), 
+        tidyss %>% filter(gene %in% topk.genes[[3]], measure == "entropy") %>% 
+          pull(value), 
+        ylim = c(0, 1), col = "indianred1", plotCentre = "line", rectCol = "gray30", side = "right", add = T)
 title(xlab = "Subchallenge", ylab = "Entropy")
 
-vioplot(autoc, autoc, autoc, col = "darkseagreen1", plotCentre = "line", rectCol = "gray70", side = "left", ylim = c(-12, 12))
-vioplot(tidyss %>% filter(gene %in% topk.genes[[1]], measure == "autoc") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[2]], measure == "autoc") %>% pull(value), tidyss %>% filter(gene %in% topk.genes[[3]], measure == "autoc") %>% pull(value), ylim = c(-12, 12), col = "indianred1", plotCentre = "line", rectCol = "gray30", side = "right", add = T)
+vioplot(autoc, autoc, autoc, col = "darkseagreen1", plotCentre = "line", rectCol = "gray70", side = "left", ylim = c(-17, 1))
+vioplot(tidyss %>% filter(gene %in% topk.genes[[1]], measure == "autoc") %>% 
+          pull(value), 
+        tidyss %>% filter(gene %in% topk.genes[[2]], measure == "autoc") %>% 
+          pull(value), 
+        tidyss %>% filter(gene %in% topk.genes[[3]], measure == "autoc") %>% 
+          pull(value), 
+        ylim = c(-17, 1), col = "indianred1", plotCentre = "line", rectCol = "gray30", side = "right", add = T)
 title(xlab = "Subchallenge", ylab = "Spatial autocorrelation statistic")
 ```
 
@@ -388,7 +404,7 @@ wilcox.test(tidyss %>% filter(measure == "autoc") %>% pull(value), tidyss %>%
 
 Run tSNE for dimensionality reduction on a subset of the normalized transcriptomics data. Cluster the cells in the reduced space with DBSCAN. Draw the tSNE plots, embryos with cells colored according to the assigned cluster and grid of embryos with isolated points assigned to each cluster.
 
-```{r}
+```{r warning=FALSE}
 trans.data <- t(dm@data)
 colnames(trans.data) <- make.names(colnames(trans.data))
 tsne1 <- Rtsne(as_tibble(trans.data) %>% select(names(frequencies1)[1:60]), theta = 0.01)
