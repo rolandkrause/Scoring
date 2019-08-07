@@ -1,6 +1,8 @@
 ---
 title: "DREAM SCTC post-challenge analysis"
-output: html_document
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -407,12 +409,17 @@ Run tSNE for dimensionality reduction on a subset of the normalized transcriptom
 ```{r warning=FALSE}
 trans.data <- t(dm@data)
 colnames(trans.data) <- make.names(colnames(trans.data))
+set.seed(123)
+
 tsne1 <- Rtsne(as_tibble(trans.data) %>% select(names(frequencies1)[1:60]), theta = 0.01)
 tsne2 <- Rtsne(as_tibble(trans.data) %>% select(names(frequencies2)[1:40]), theta = 0.01)
 tsne3 <- Rtsne(as_tibble(trans.data) %>% select(names(frequencies3)[1:20]), theta = 0.01)
 
+#determine eps
+kNNdistplot(tsne1$Y, k=10)
+
 tsneClus(tsne1,3.5,1)
 tsneClus(tsne2,3.5,2)
 tsneClus(tsne3,3.5,3)
-```
+``` 
 

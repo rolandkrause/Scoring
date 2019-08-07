@@ -201,11 +201,3 @@ reduced.DistMap <- function(gene.names, output.file) {
   write.table(in.format, file = output.file, na = "", sep = ",", row.names = FALSE, col.names = FALSE, append = TRUE)
 }
 
-#requires dm!!
-plot_insitu <- function(gene.name, color="cyan"){
-  pattern <- tibble(x=dm@geometry[seq(1,6078,by=2),1], z=dm@geometry[seq(1,6078,by=2),3], 
-                    gene = as.factor(rep(dm@insitu.matrix[,gene.name], 2))[seq(1,6078,by=2)])
-  ggplot(pattern, aes(x=x,y=z,fill=gene,color=gene)) + geom_point(shape=21) + 
-    scale_fill_manual(values=c("white",color)) + scale_color_manual(values=c("gray80","gray30")) + theme_void() + 
-    theme(legend.position = "none")
-}
